@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CarbonLens</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root,[data-theme="dark"]{
+      --bg:#07090e;--surface:rgba(15,23,42,0.85);--surface-solid:#0f172a;
+      --surface2:#1e293b;--surface2-glass:rgba(30,41,59,0.75);
+      --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.16);
+      --accent:#10b981;--accent2:#059669;--accent-dim:rgba(16,185,129,0.08);
+      --warn:#f59e0b;--danger:#f43f5e;--blue:#3b82f6;--purple:#6366f1;
+      --text:#f8fafc;--text2:#cbd5e1;--text3:#64748b;
+      --shadow:rgba(0,0,0,0.4);--panel-header-bg:rgba(15,23,42,0.95);
+      --stat-bg:rgba(7,9,14,0.45);--overlay-bg:rgba(7,9,14,0.72);
+      --chart-bg:rgba(15,23,42,0.92);--badge-bg:rgba(15,23,42,0.88);
+      --scroll-thumb:rgba(255,255,255,0.1);--tab-bg:rgba(7,9,14,0.6);
+      --view-btn-bg:rgba(7,9,14,0.5);--layer-check-bg:rgba(7,9,14,0.6);
+      --input-bg:rgba(7,9,14,0.8);
+    }
+    [data-theme="light"]{
+      --bg:#f0f4f8;--surface:rgba(255,255,255,0.92);--surface-solid:#ffffff;
+      --surface2:#e2e8f0;--surface2-glass:rgba(241,245,249,0.9);
+      --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
+      --accent:#059669;--accent2:#047857;--accent-dim:rgba(5,150,105,0.08);
+      --warn:#d97706;--danger:#e11d48;--blue:#2563eb;--purple:#4f46e5;
+      --text:#0f172a;--text2:#334155;--text3:#64748b;
+      --shadow:rgba(0,0,0,0.12);--panel-header-bg:rgba(255,255,255,0.97);
+      --stat-bg:rgba(248,250,252,0.8);--overlay-bg:rgba(240,244,248,0.82);
+      --chart-bg:rgba(255,255,255,0.96);--badge-bg:rgba(255,255,255,0.94);
+      --scroll-thumb:rgba(0,0,0,0.14);--tab-bg:rgba(226,232,240,0.7);
+      --view-btn-bg:rgba(226,232,240,0.6);--layer-check-bg:rgba(226,232,240,0.8);
+      --input-bg:rgba(255,255,255,0.9);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text2);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;transition:background 0.3s,color 0.3s}
+    #app{display:flex;height:100vh;width:100vw;background:var(--bg)}
+    #panel{width:370px;min-width:370px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;z-index:1000;backdrop-filter:blur(20px);box-shadow:4px 0 24px var(--shadow);transition:background 0.3s,border-color 0.3s}
+    #panel-header{padding:18px 20px 14px;border-bottom:1px solid var(--border);background:var(--panel-header-bg);flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+    .logo-row{display:flex;align-items:center;gap:10px}
+    .logo-dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;flex-shrink:0}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 10px var(--accent)}50%{opacity:0.4;transform:scale(0.88);box-shadow:0 0 5px var(--accent)}}
+    .logo-text{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:var(--text);letter-spacing:-0.5px}
+    .logo-text span{background:linear-gradient(135deg,var(--accent) 0%,#34d399 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .header-actions{display:flex;align-items:center;gap:8px}
+    #theme-toggle{width:34px;height:34px;border-radius:9px;border:1px solid var(--border2);background:var(--surface2-glass);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;transition:all 0.2s}
+    #theme-toggle:hover{background:var(--surface2);color:var(--accent);border-color:var(--accent)}
+    #panel-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:13px;scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) transparent}
+    #panel-body::-webkit-scrollbar{width:4px}
+    #panel-body::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:10px}
+    #mode-tabs{display:flex;gap:2px;background:var(--tab-bg);border:1px solid var(--border);border-radius:12px;padding:4px}
+    .tab{flex:1;padding:9px 6px;border-radius:8px;border:none;background:transparent;color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;transition:all 0.2s;letter-spacing:0.2px}
+    .tab:hover:not(.active){color:var(--text2);background:rgba(128,128,128,0.06)}
+    .tab.active{background:var(--surface2);color:var(--text);box-shadow:0 2px 10px var(--shadow)}
+    .card{background:var(--surface2-glass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 2px 12px var(--shadow);transition:border-color 0.2s,background 0.3s}
+    .card:hover{border-color:var(--border2)}
+    .card-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+    .field-row{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+    .field-row:last-child{margin-bottom:0}
+    .field-label{font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:1px;text-transform:uppercase}
+    .field-select,.field-input{background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:9px 11px;width:100%;outline:none;transition:all 0.2s}
+    .field-select:focus,.field-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+    .field-select option{background:var(--surface-solid);color:var(--text)}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .btn{width:100%;padding:11px 16px;border-radius:10px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.4px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px}
+    .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#051a10}
+    .btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 18px rgba(16,185,129,0.28);filter:brightness(1.08)}
+    .btn-primary:disabled{opacity:0.32;cursor:not-allowed}
+    .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border)}
+    .btn-ghost:hover{border-color:var(--danger);color:var(--text);background:rgba(244,63,94,0.07)}
+    .btn-blue{background:linear-gradient(135deg,var(--blue),#2563eb);color:#fff}
+    .btn-blue:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 18px rgba(59,130,246,0.28)}
+    .btn-blue:disabled{opacity:0.32;cursor:not-allowed}
+    .btn-purple{background:linear-gradient(135deg,var(--purple),#4f46e5);color:#fff}
+    .btn-purple:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 18px rgba(99,102,241,0.28)}
+    .btn-purple:disabled{opacity:0.32;cursor:not-allowed}
+    .btn-accent{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(16,185,129,0.25);font-size:12px;padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;font-family:'Plus Jakarta Sans',sans-serif}
+    .btn-accent:hover{background:rgba(16,185,129,0.15);border-color:var(--accent)}
+    .btn-accent:disabled{opacity:0.35;cursor:not-allowed}
+    #status-badge{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:10px;font-size:12px;font-weight:500;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.15);color:var(--accent);transition:all 0.25s}
+    #status-badge.loading{background:rgba(245,158,11,0.05);border-color:rgba(245,158,11,0.15);color:var(--warn)}
+    #status-badge.error{background:rgba(244,63,94,0.05);border-color:rgba(244,63,94,0.15);color:var(--danger)}
+    #status-badge.success{background:rgba(16,185,129,0.05);border-color:rgba(16,185,129,0.15);color:var(--accent)}
+    .sdot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+    .sdot.spin{animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    #cache-badge{display:none;align-items:center;gap:8px;padding:7px 12px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);color:var(--purple)}
+    #cache-badge.visible{display:flex}
+    #cache-badge.live{background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.2);color:var(--accent)}
+
+    /* ── Saved Areas ── */
+    .saved-area-item{
+      display:flex;align-items:center;gap:8px;
+      padding:9px 10px;border-radius:8px;
+      background:var(--stat-bg);border:1px solid var(--border);
+      margin-bottom:7px;transition:border-color 0.2s;
+    }
+    .saved-area-item:last-child{margin-bottom:0}
+    .saved-area-item:hover{border-color:var(--border2)}
+    .saved-area-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;box-shadow:0 0 6px var(--accent)}
+    .saved-area-name{flex:1;font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .saved-area-meta{font-size:10px;color:var(--text3)}
+    .saved-area-actions{display:flex;gap:5px;flex-shrink:0}
+    .icon-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all 0.2s}
+    .icon-btn:hover.load-btn{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+    .icon-btn:hover.del-btn{border-color:var(--danger);color:var(--danger);background:rgba(244,63,94,0.08)}
+    .save-row{display:flex;gap:8px;margin-top:10px}
+    .save-input{flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:12px;padding:8px 10px;outline:none;transition:all 0.2s}
+    .save-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-dim)}
+    .save-input::placeholder{color:var(--text3)}
+    .no-areas{font-size:11px;color:var(--text3);text-align:center;padding:14px 0}
+
+    .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .stat-cell{background:var(--stat-bg);border:1px solid var(--border);border-radius:8px;padding:11px 13px;transition:border-color 0.2s}
+    .stat-cell:hover{border-color:var(--border2)}
+    .stat-cell.full{grid-column:1/-1}
+    .stat-lbl{font-family:'Plus Jakarta Sans',sans-serif;font-size:9px;font-weight:600;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px}
+    .stat-val{font-family:'Inter',sans-serif;font-size:20px;font-weight:700;color:var(--text);line-height:1}
+    .stat-val.green{color:var(--accent)}.stat-val.blue{color:var(--blue)}
+    .stat-val.orange{color:var(--warn)}.stat-val.red{color:var(--danger)}
+    .stat-val.purple{color:var(--purple)}
+    .stat-unit{font-size:10px;color:var(--text3);margin-top:3px}
+    .stat-placeholder{font-size:12px;color:var(--text3);text-align:center;padding:22px 0}
+    .level-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:20px;font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:700}
+    .level-High{background:rgba(16,185,129,0.1);color:var(--accent);border:1px solid rgba(16,185,129,0.25)}
+    .level-Medium{background:rgba(245,158,11,0.1);color:var(--warn);border:1px solid rgba(245,158,11,0.25)}
+    .level-Low{background:rgba(244,63,94,0.1);color:var(--danger);border:1px solid rgba(244,63,94,0.25)}
+    .view-btn-group{display:flex;gap:3px;background:var(--view-btn-bg);border:1px solid var(--border);border-radius:8px;padding:3px}
+    .view-btn{flex:1;padding:7px 5px;border:none;background:transparent;color:var(--text3);font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:600;border-radius:6px;cursor:pointer;transition:all 0.2s;letter-spacing:0.3px}
+    .view-btn:hover{color:var(--text2);background:rgba(128,128,128,0.07)}
+    .view-btn.active{background:var(--surface2);color:var(--text);box-shadow:0 2px 8px var(--shadow)}
+    .legend-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;color:var(--text2)}
+    .legend-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+    .layer-toggle{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity 0.2s}
+    .layer-toggle:hover{opacity:0.88}.layer-toggle:last-child{border-bottom:none}
+    .layer-swatch{width:26px;height:9px;border-radius:3px;flex-shrink:0}
+    .sw-rgb{background:linear-gradient(90deg,#103a20,var(--accent),#a3e635)}
+    .sw-ndvi{background:linear-gradient(90deg,#a78bfa,#fff,#065f46)}
+    .sw-lulc{background:linear-gradient(90deg,#065f46,#eab308,#ef4444)}
+    .sw-carbon{background:linear-gradient(90deg,#ef4444,#eab308,#10b981)}
+    .sw-change{background:linear-gradient(90deg,#d62728,#aec7e8,#2ca02c)}
+    .layer-name{flex:1;font-size:12px;font-weight:500;color:var(--text2)}
+    .layer-check{width:18px;height:18px;border-radius:5px;border:1px solid var(--border2);background:var(--layer-check-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s}
+    .layer-check.active{background:var(--accent);border-color:var(--accent);box-shadow:0 0 8px rgba(16,185,129,0.35)}
+    .layer-check.active::after{content:'';width:8px;height:4px;border-left:2px solid #051a10;border-bottom:2px solid #051a10;transform:rotate(-45deg) translateY(-1px)}
+    .rec-item{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);line-height:1.5}
+    .rec-item:last-child{border-bottom:none}
+    .rec-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:5px;box-shadow:0 0 6px var(--accent)}
+    #progress-bar{height:3px;background:var(--border);overflow:hidden;display:none}
+    #progress-bar.active{display:block}
+    #progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),#34d399);width:0%;transition:width 0.4s ease;box-shadow:0 0 6px var(--accent)}
+    #map-container{flex:1;position:relative;overflow:hidden;background:var(--bg)}
+    #map{width:100%;height:100%}
+    #map-hint{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);background:var(--badge-bg);border:1px solid var(--border2);border-radius:28px;padding:9px 22px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:500;font-size:12px;color:var(--text2);pointer-events:none;backdrop-filter:blur(12px);z-index:500;box-shadow:0 6px 28px var(--shadow);transition:opacity 0.4s}
+    #map-hint.hidden{opacity:0}
+    #map-overlay{position:absolute;inset:0;background:var(--overlay-bg);display:none;align-items:center;justify-content:center;z-index:600;backdrop-filter:blur(6px);flex-direction:column;gap:18px}
+    #map-overlay.active{display:flex}
+    .spinner-ring{width:50px;height:50px;border:3px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:ring-spin 0.8s cubic-bezier(0.4,0,0.2,1) infinite;box-shadow:0 0 14px rgba(16,185,129,0.18)}
+    @keyframes ring-spin{to{transform:rotate(360deg)}}
+    .overlay-msg{color:var(--text2);font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:500;letter-spacing:0.4px}
+    #coord-badge{position:absolute;top:14px;right:14px;background:var(--badge-bg);border:1px solid var(--border);border-radius:8px;padding:7px 13px;font-family:'Inter',sans-serif;font-size:11px;color:var(--text2);z-index:500;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 3px 14px var(--shadow);transition:background 0.3s}
+    #info-badge{display:none;position:absolute;top:14px;left:14px;background:var(--badge-bg);border:1px solid rgba(16,185,129,0.35);border-radius:8px;padding:7px 13px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:11px;color:var(--accent);z-index:500;pointer-events:none;backdrop-filter:blur(12px);box-shadow:0 3px 18px rgba(16,185,129,0.13);transition:background 0.3s}
+    #info-badge.visible{display:block}
+    #chart-panel{position:absolute;bottom:18px;right:18px;width:430px;background:var(--chart-bg);border:1px solid var(--border);border-radius:12px;padding:18px;z-index:500;backdrop-filter:blur(20px);box-shadow:0 10px 36px var(--shadow);display:none;transition:background 0.3s,border-color 0.3s}
+    #chart-panel.visible{display:block}
+    #chart-title{font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text);margin-bottom:3px}
+    #chart-subtitle{font-family:'Inter',sans-serif;font-size:11px;color:var(--text3);margin-bottom:14px}
+    #chart-close{position:absolute;top:14px;right:16px;background:var(--border);border:none;color:var(--text2);width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+    #chart-close:hover{background:var(--surface2);color:var(--text)}
+    #chart-legend{display:flex;gap:18px;margin-bottom:12px}
+    .chart-leg-item{display:flex;align-items:center;gap:7px;font-family:'Plus Jakarta Sans',sans-serif;font-size:11px;font-weight:500;color:var(--text2)}
+    .leg-line{width:20px;height:3px;border-radius:2px}
+    .leg-solid{background:var(--accent)}
+    .leg-dashed{background:repeating-linear-gradient(90deg,var(--purple) 0,var(--purple) 5px,transparent 5px,transparent 9px)}
+    .leaflet-control-zoom a{background:var(--badge-bg)!important;color:var(--text2)!important;border-color:var(--border)!important;transition:all 0.2s!important;border-radius:6px!important}
+    .leaflet-control-zoom a:hover{background:var(--surface2)!important;color:var(--accent)!important}
+    .leaflet-bar{border:none!important;box-shadow:0 3px 14px var(--shadow)!important;background:transparent!important}
+    .leaflet-draw-toolbar a{background-color:var(--badge-bg)!important;border-color:var(--border)!important;transition:all 0.2s!important}
+    .leaflet-draw-toolbar a:hover{background-color:var(--surface2)!important}
+    .footer-area{display:flex;align-items:center;justify-content:space-between;padding:4px 0 6px}
+    .footer-text{font-size:9px;color:var(--text3);letter-spacing:1px}
+    .year-badge{display:inline-block;padding:4px 10px;border-radius:6px;background:var(--accent-dim);border:1px solid rgba(16,185,129,0.2);color:var(--accent);font-size:11px;margin-bottom:4px}
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <div id="panel">
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+    <div id="panel-header">
+      <div class="logo-row">
+        <div class="logo-dot"></div>
+        <div class="logo-text">Carbon<span>Lens</span></div>
+      </div>
+      <div class="header-actions">
+        <button id="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <span id="theme-icon">☀️</span>
+        </button>
+      </div>
+    </div>
+
+    <div id="panel-body">
+
+      <div id="status-badge">
+        <div class="sdot" id="sdot"></div>
+        <span id="stext">Draw a polygon to begin</span>
+      </div>
+
+      <div id="cache-badge">
+        <span id="cache-icon">⚡</span>
+        <span id="cache-text">Loaded from cache</span>
+      </div>
+
+      <div id="mode-tabs">
+        <button class="tab active" onclick="switchMode('analyze',this)">Analyze</button>
+        <button class="tab" onclick="switchMode('compare',this)">Compare</button>
+        <button class="tab" onclick="switchMode('forecast',this)">Forecast</button>
+      </div>
+
+      <!-- ── SAVED AREAS ── -->
+      <div class="card">
+        <div class="card-title">
+          <span>📍 Saved Areas</span>
+          <span id="saved-count" style="font-size:10px;color:var(--text3);font-weight:500;letter-spacing:0"></span>
+        </div>
+        <div id="saved-areas-list">
+          <div class="no-areas">No saved areas yet.<br>Draw a polygon and save it.</div>
+        </div>
+        <!-- Save input — only visible when polygon is drawn -->
+        <div class="save-row" id="save-row" style="display:none">
+          <input class="save-input" id="area-name-input"
+            placeholder="Name this area…" maxlength="30"
+            onkeydown="if(event.key==='Enter')saveCurrentArea()"/>
+          <button class="btn-accent" onclick="saveCurrentArea()">
+            💾 Save
+          </button>
+        </div>
+      </div>
+
+      <!-- ── ANALYZE ── -->
+      <div id="mode-analyze">
+        <div class="card">
+          <div class="card-title">Auto Analysis</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:11px;line-height:1.6">
+            Automatically analyzes the latest available year.<br>Draw a polygon and click Analyze.
+          </div>
+          <div class="year-badge" id="auto-year-badge">Year: auto-selected by backend</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Actions</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary" id="analyze-btn" onclick="runAnalyze()" disabled>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Analyze
+            </button>
+            <button class="btn btn-ghost" onclick="clearAll()">Clear Map</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMPARE ── -->
+      <div id="mode-compare" style="display:none">
+        <div class="card">
+          <div class="card-title">Select Years</div>
+          <div class="two-col">
+            <div class="field-row">
+              <div class="field-label">Year 1 (baseline)</div>
+              <select class="field-select" id="year1-select"></select>
+            </div>
+            <div class="field-row">
+              <div class="field-label">Year 2 (target)</div>
+              <select class="field-select" id="year2-select"></select>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Map View</div>
+          <div class="view-btn-group">
+            <button class="view-btn active" id="vbtn-change" onclick="setCompareView('change')">Change Map</button>
+            <button class="view-btn" id="vbtn-y1" onclick="setCompareView('y1')">Year 1</button>
+            <button class="view-btn" id="vbtn-y2" onclick="setCompareView('y2')">Year 2</button>
+          </div>
+          <div id="change-legend" style="margin-top:11px">
+            <div class="legend-row"><div class="legend-dot" style="background:#2ca02c"></div><span>Carbon gain (&gt;+5 t/ha)</span></div>
+            <div class="legend-row"><div class="legend-dot" style="background:#aec7e8"></div><span>Stable (±5 t/ha)</span></div>
+            <div class="legend-row"><div class="legend-dot" style="background:#d62728"></div><span>Carbon loss (&lt;−5 t/ha)</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Actions</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-blue" id="compare-btn" onclick="runCompare()" disabled>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+              Compare Years
+            </button>
+            <button class="btn btn-ghost" onclick="clearAll()">Clear Map</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FORECAST ── -->
+      <div id="mode-forecast" style="display:none">
+        <div class="card">
+          <div class="card-title">Forecast Settings</div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:11px;line-height:1.6">
+            Uses <strong style="color:var(--accent)">real GEE satellite data</strong> per year for your polygon.<br>
+            Draw a polygon first, then click Predict.
+          </div>
+          <div class="field-row">
+            <div class="field-label">Years ahead to forecast</div>
+            <select class="field-select" id="forecast-years">
+              <option value="2">2 years</option>
+              <option value="3" selected>3 years</option>
+              <option value="5">5 years</option>
+            </select>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Actions</div>
+          <button class="btn btn-purple" id="forecast-btn" onclick="runForecast()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Predict Future Carbon
+          </button>
+        </div>
+        <div class="card" id="forecast-source-card" style="display:none">
+          <div class="card-title">Model Info</div>
+          <div id="forecast-source-text" style="font-size:11px;color:var(--text3);line-height:1.6"></div>
+        </div>
+      </div>
+
+      <!-- ── LAYERS ── -->
+      <div class="card" id="analyze-layers-card">
+        <div class="card-title">Map Layers</div>
+        <div>
+          <div class="layer-toggle" onclick="toggleLayer('carbon_map')">
+            <div class="layer-swatch sw-carbon"></div>
+            <div class="layer-name">Carbon Map</div>
+            <div class="layer-check" id="check-carbon_map"></div>
+          </div>
+          <div class="layer-toggle" onclick="toggleLayer('lulc_map')">
+            <div class="layer-swatch sw-lulc"></div>
+            <div class="layer-name">LULC Map</div>
+            <div class="layer-check" id="check-lulc_map"></div>
+          </div>
+          <div class="layer-toggle" onclick="toggleLayer('ndvi_map')">
+            <div class="layer-swatch sw-ndvi"></div>
+            <div class="layer-name">NDVI Map</div>
+            <div class="layer-check" id="check-ndvi_map"></div>
+          </div>
+          <div class="layer-toggle" onclick="toggleLayer('rgb')">
+            <div class="layer-swatch sw-rgb"></div>
+            <div class="layer-name">True Colour RGB</div>
+            <div class="layer-check" id="check-rgb"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── STATS ── -->
+      <div class="card">
+        <div class="card-title">Statistics</div>
+        <div id="stats-container">
+          <div class="stat-placeholder">Run analysis to see results</div>
+        </div>
+      </div>
+
+      <!-- ── RECOMMENDATIONS ── -->
+      <div class="card" id="recs-card" style="display:none">
+        <div class="card-title">Recommendations</div>
+        <div id="recs-container"></div>
+      </div>
+
+      <div class="footer-area">
+        <div class="footer-text">SENTINEL-2 · MODIS · WORLDPOP · ESA</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── MAP ── -->
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="map-hint">Use the polygon tool to draw your region of interest</div>
+    <div id="map-overlay">
+      <div class="spinner-ring"></div>
+      <div class="overlay-msg" id="overlay-msg">Processing…</div>
+    </div>
+    <div id="coord-badge">Hover map for coordinates</div>
+    <div id="info-badge"></div>
+    <div id="chart-panel">
+      <div id="chart-title">CARBON TREND & FORECAST</div>
+      <div id="chart-subtitle"></div>
+      <button id="chart-close" onclick="document.getElementById('chart-panel').classList.remove('visible')">✕</button>
+      <div id="chart-legend">
+        <div class="chart-leg-item"><div class="leg-line leg-solid"></div><span>Historical (measured)</span></div>
+        <div class="chart-leg-item"><div class="leg-line leg-dashed"></div><span>Forecast (predicted)</span></div>
+      </div>
+      <canvas id="trend-chart" height="160"></canvas>
+    </div>
+  </div>
+
+</div>
+<script>
+// =============================================================================
+// THEME
+// =============================================================================
+const DARK_TILES  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+let currentTheme = localStorage.getItem('cl-theme') || 'dark';
+let mapTileLayer  = null;
+
+function applyTheme(theme) {
+  currentTheme = theme;
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-icon').textContent = theme==='dark'?'☀️':'🌙';
+  localStorage.setItem('cl-theme', theme);
+  if(mapTileLayer) map.removeLayer(mapTileLayer);
+  mapTileLayer = L.tileLayer(
+    theme==='dark'?DARK_TILES:LIGHT_TILES,
+    {maxZoom:19,subdomains:'abcd'}
+  );
+  mapTileLayer.addTo(map);
+  mapTileLayer.bringToBack();
+  if(trendChart) updateChartTheme(theme);
+}
+function toggleTheme(){ applyTheme(currentTheme==='dark'?'light':'dark'); }
+function updateChartTheme(theme) {
+  if(!trendChart) return;
+  const isDark=theme==='dark';
+  const grid=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.07)';
+  const tick='#64748b';
+  const ttBg=isDark?'rgba(15,23,42,0.95)':'rgba(255,255,255,0.97)';
+  const ttT=isDark?'#f8fafc':'#0f172a';
+  const ttB=isDark?'#cbd5e1':'#334155';
+  const ttBd=isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.1)';
+  trendChart.options.plugins.tooltip.backgroundColor=ttBg;
+  trendChart.options.plugins.tooltip.titleColor=ttT;
+  trendChart.options.plugins.tooltip.bodyColor=ttB;
+  trendChart.options.plugins.tooltip.borderColor=ttBd;
+  trendChart.options.scales.x.ticks.color=tick;
+  trendChart.options.scales.x.grid.color=grid;
+  trendChart.options.scales.y.ticks.color=tick;
+  trendChart.options.scales.y.grid.color=grid;
+  trendChart.options.scales.y.title.color=tick;
+  trendChart.update();
+}
+
+// =============================================================================
+// CACHE SYSTEM
+// =============================================================================
+const CACHE_PREFIX = 'cl-cache-';
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function hashCoords(coords) {
+  // Round to 3dp — precise enough for exact polygon reload
+  return coords.map(c=>
+    `${Math.round(c[0]*1000)/1000},${Math.round(c[1]*1000)/1000}`
+  ).join('|');
+}
+function cacheKey(type, coords, extra='') {
+  return `${CACHE_PREFIX}${type}-${hashCoords(coords)}${extra?'-'+extra:''}`;
+}
+function saveCache(key, data) {
+  try {
+    localStorage.setItem(key, JSON.stringify({data, ts:Date.now()}));
+  } catch(e){ console.warn('Cache save failed:',e); }
+}
+function loadCache(key) {
+  try {
+    const raw=localStorage.getItem(key);
+    if(!raw) return null;
+    const {data,ts}=JSON.parse(raw);
+    if(Date.now()-ts > CACHE_TTL_MS){ localStorage.removeItem(key); return null; }
+    return data;
+  } catch(e){ return null; }
+}
+function showCacheBadge(fromCache) {
+  const badge=document.getElementById('cache-badge');
+  const icon=document.getElementById('cache-icon');
+  const text=document.getElementById('cache-text');
+  badge.classList.remove('live');
+  if(fromCache){
+    badge.classList.add('visible');
+    icon.textContent='⚡'; text.textContent='Instant — loaded from cache';
+  } else {
+    badge.classList.add('visible','live');
+    icon.textContent='🛰'; text.textContent='Live — fetched from GEE';
+    setTimeout(()=>badge.classList.remove('visible','live'),4000);
+  }
+}
+function hideCacheBadge(){
+  document.getElementById('cache-badge').classList.remove('visible','live');
+}
+
+// =============================================================================
+// SAVED AREAS SYSTEM
+// =============================================================================
+const AREAS_KEY = 'cl-saved-areas';
+
+function getSavedAreas() {
+  try { return JSON.parse(localStorage.getItem(AREAS_KEY)||'[]'); }
+  catch(e){ return []; }
+}
+function putSavedAreas(areas) {
+  localStorage.setItem(AREAS_KEY, JSON.stringify(areas));
+}
+
+function saveCurrentArea() {
+  if(!state.drawnCoords) return;
+  const input = document.getElementById('area-name-input');
+  const name  = input.value.trim();
+  if(!name){ input.focus(); input.style.borderColor='var(--danger)'; return; }
+  input.style.borderColor='';
+
+  const areas = getSavedAreas();
+
+  // Prevent duplicate names
+  if(areas.find(a=>a.name===name)){
+    input.style.borderColor='var(--warn)';
+    input.placeholder='Name already exists!';
+    setTimeout(()=>{ input.style.borderColor=''; input.placeholder='Name this area…'; },2000);
+    return;
+  }
+
+  areas.push({
+    id:      Date.now(),
+    name,
+    coords:  state.drawnCoords,          // exact coordinates saved
+    savedAt: new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short'}),
+  });
+  putSavedAreas(areas);
+  input.value = '';
+  renderSavedAreas();
+  setStatus('success',`"${name}" saved — click Load anytime to reuse`);
+}
+
+function loadSavedArea(id) {
+  const areas = getSavedAreas();
+  const area  = areas.find(a=>a.id===id);
+  if(!area) return;
+
+  // Clear existing polygon
+  drawnItems.clearLayers();
+  removeAllOverlays();
+  hideCacheBadge();
+
+  // Recreate polygon from saved exact coordinates
+  const latlngs = area.coords
+    .slice(0,-1)                          // remove closing point
+    .map(c=>L.latLng(c[1],c[0]));        // [lng,lat] → L.latLng(lat,lng)
+
+  const polygon = L.polygon(latlngs,{
+    color:'#10b981',weight:2,
+    fillColor:'#10b981',fillOpacity:0.12,
+  });
+  drawnItems.addLayer(polygon);
+
+  // Restore state — exact same coordinates as first time
+  state.drawnPolygon = polygon;
+  state.drawnCoords  = area.coords;      // exact saved coords → cache key matches
+
+  enableButtons(true);
+  map.fitBounds(polygon.getBounds(),{padding:[40,40]});
+  document.getElementById('map-hint').classList.add('hidden');
+  document.getElementById('save-row').style.display='flex';
+
+  setStatus('ready',`"${area.name}" loaded — click Analyze / Compare / Forecast`);
+
+  // Pre-populate year dropdowns from cache if available
+  fetchAvailableYears(area.coords);
+}
+
+function deleteSavedArea(id) {
+  const areas   = getSavedAreas().filter(a=>a.id!==id);
+  putSavedAreas(areas);
+  renderSavedAreas();
+}
+
+function renderSavedAreas() {
+  const areas     = getSavedAreas();
+  const list      = document.getElementById('saved-areas-list');
+  const countEl   = document.getElementById('saved-count');
+  countEl.textContent = areas.length ? `${areas.length} saved` : '';
+
+  if(!areas.length){
+    list.innerHTML='<div class="no-areas">No saved areas yet.<br>Draw a polygon and save it.</div>';
+    return;
+  }
+
+  list.innerHTML = areas.map(a=>`
+    <div class="saved-area-item">
+      <div class="saved-area-dot"></div>
+      <div style="flex:1;min-width:0">
+        <div class="saved-area-name">${a.name}</div>
+        <div class="saved-area-meta">${a.savedAt}</div>
+      </div>
+      <div class="saved-area-actions">
+        <button class="icon-btn load-btn" onclick="loadSavedArea(${a.id})" title="Load this area">▶</button>
+        <button class="icon-btn del-btn"  onclick="deleteSavedArea(${a.id})" title="Delete">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// =============================================================================
+// APP STATE + MAP
+// =============================================================================
+const API = 'http://localhost:8000';
+let trendChart = null;
+
+const state = {
+  drawnPolygon:   null,
+  drawnCoords:    null,
+  overlays:       {},
+  layerVisible:   {},
+  isLoading:      false,
+  mode:           'analyze',
+  compareView:    'change',
+  availableYears: [2017,2018,2019,2020,2021,2022,2023,2024,2025],
+  compareData:    null,
+};
+
+const map = L.map('map',{center:[20,78],zoom:5,zoomControl:true,attributionControl:false});
+applyTheme(currentTheme);
+
+map.on('mousemove', e=>{
+  document.getElementById('coord-badge').textContent=
+    `${e.latlng.lat.toFixed(4)}°, ${e.latlng.lng.toFixed(4)}°`;
+});
+
+const drawnItems = new L.FeatureGroup().addTo(map);
+map.addControl(new L.Control.Draw({
+  draw:{
+    polygon:{shapeOptions:{color:'#10b981',weight:2,fillColor:'#10b981',fillOpacity:.12},allowIntersection:false},
+    polyline:false,rectangle:false,circle:false,marker:false,circlemarker:false,
+  },
+  edit:{featureGroup:drawnItems,remove:true},
+}));
+
+map.on(L.Draw.Event.CREATED, e=>{
+  drawnItems.clearLayers(); drawnItems.addLayer(e.layer);
+  const latlngs=e.layer.getLatLngs()[0];
+  const coords=latlngs.map(p=>[p.lng,p.lat]); coords.push(coords[0]);
+  state.drawnPolygon=e.layer; state.drawnCoords=coords;
+  enableButtons(true); hideCacheBadge();
+  document.getElementById('save-row').style.display='flex';
+  document.getElementById('area-name-input').value='';
+  setStatus('ready',`Polygon ready — ${coords.length-1} vertices`);
+  document.getElementById('map-hint').classList.add('hidden');
+  fetchAvailableYears(coords);
+});
+
+map.on(L.Draw.Event.DELETED, ()=>{
+  state.drawnPolygon=null; state.drawnCoords=null;
+  enableButtons(false); hideCacheBadge();
+  document.getElementById('save-row').style.display='none';
+  setStatus('idle','Draw a polygon to begin');
+  document.getElementById('map-hint').classList.remove('hidden');
+  state.availableYears=[2017,2018,2019,2020,2021,2022,2023,2024,2025];
+  populateDropdowns();
+});
+
+// =============================================================================
+// UI HELPERS
+// =============================================================================
+function enableButtons(on) {
+  ['analyze-btn','compare-btn'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.disabled=!on;
+  });
+}
+
+function switchMode(mode, tabEl) {
+  state.mode=mode;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  tabEl.classList.add('active');
+  ['analyze','compare','forecast'].forEach(m=>{
+    const el=document.getElementById(`mode-${m}`);
+    if(el) el.style.display=m===mode?'block':'none';
+  });
+  document.getElementById('analyze-layers-card').style.display=
+    mode==='analyze'?'block':'none';
+  removeAllOverlays(); hideCacheBadge();
+  document.getElementById('info-badge').classList.remove('visible');
+  document.getElementById('chart-panel').classList.remove('visible');
+  document.getElementById('stats-container').innerHTML=
+    '<div class="stat-placeholder">Run analysis to see results</div>';
+  document.getElementById('recs-card').style.display='none';
+}
+
+// =============================================================================
+// ANALYZE — with cache
+// =============================================================================
+async function runAnalyze() {
+  if(!state.drawnCoords||state.isLoading) return;
+  const key    = cacheKey('analyze', state.drawnCoords);
+  const cached = loadCache(key);
+  if(cached){ showCacheBadge(true); applyAnalyzeResult(cached,true); return; }
+  startLoading('Fetching latest year data from GEE…');
+  try {
+    const res=await fetch(`${API}/analyze`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({coordinates:state.drawnCoords}),
+    });
+    if(!res.ok) throw new Error((await res.json()).detail||`HTTP ${res.status}`);
+    const data=await res.json();
+    saveCache(key,data); showCacheBadge(false);
+    applyAnalyzeResult(data,false);
+  } catch(e){setStatus('error',e.message);}
+  finally{stopLoading();}
+}
+
+function applyAnalyzeResult(data, fromCache) {
+  document.getElementById('auto-year-badge').textContent=`Year auto-selected: ${data.year}`;
+  removeAllOverlays();
+  const bounds=state.drawnPolygon.getBounds();
+  const urlMap={carbon_map:data.carbon_map,lulc_map:data.lulc,ndvi_map:data.ndvi,rgb:data.rgb};
+  Object.entries(urlMap).forEach(([k,url])=>{
+    if(url) state.overlays[k]=L.imageOverlay(url,bounds,{opacity:0.9});
+  });
+  if(state.overlays.carbon_map){state.overlays.carbon_map.addTo(map);state.layerVisible.carbon_map=true;}
+  syncLayerChecks();
+  map.fitBounds(bounds,{padding:[40,40]});
+  renderAnalyzeStats(data); renderRecs(data.recommendations);
+  setBadge(`${data.year} · ${data.model_used} · ${data.lulc_label}`);
+  setStatus('success',fromCache?`Loaded from cache — ${data.year}`:`Analysis complete — ${data.year}`);
+}
+
+// =============================================================================
+// COMPARE — with cache
+// =============================================================================
+async function runCompare() {
+  if(!state.drawnCoords||state.isLoading) return;
+  const year1=parseInt(document.getElementById('year1-select').value);
+  const year2=parseInt(document.getElementById('year2-select').value);
+  if(year1>=year2){setStatus('error','Year 1 must be before Year 2');return;}
+  const key    = cacheKey('compare', state.drawnCoords, `${year1}-${year2}`);
+  const cached = loadCache(key);
+  if(cached){ showCacheBadge(true); applyCompareResult(cached,year1,year2,true); return; }
+  startLoading(`Comparing ${year1} vs ${year2} via GEE…`);
+  try {
+    const res=await fetch(`${API}/compare`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({coordinates:state.drawnCoords,year1,year2}),
+    });
+    if(!res.ok) throw new Error((await res.json()).detail||`HTTP ${res.status}`);
+    const data=await res.json();
+    saveCache(key,data); showCacheBadge(false);
+    applyCompareResult(data,year1,year2,false);
+  } catch(e){setStatus('error',e.message);}
+  finally{stopLoading();}
+}
+
+function applyCompareResult(data, year1, year2, fromCache) {
+  state.compareData=data; removeAllOverlays();
+  const bounds=state.drawnPolygon.getBounds();
+  if(data.classified_change_map||data.change_map)
+    state.overlays.change=L.imageOverlay(data.classified_change_map||data.change_map,bounds,{opacity:0.9});
+  if(data.carbon_map_year1||data.carbon_year1_map)
+    state.overlays.y1=L.imageOverlay(data.carbon_map_year1||data.carbon_year1_map,bounds,{opacity:0.9});
+  if(data.carbon_map_year2||data.carbon_year2_map)
+    state.overlays.y2=L.imageOverlay(data.carbon_map_year2||data.carbon_year2_map,bounds,{opacity:0.9});
+  state.compareView='change'; applyCompareView();
+  map.fitBounds(bounds,{padding:[40,40]});
+  renderCompareStats(data); renderRecs(data.recommendations);
+  const sign=data.change>=0?'+':'';
+  setBadge(`${year1}→${year2} · ${sign}${data.change} t/ha · ${data.trend}`);
+  setStatus('success',fromCache?`Loaded from cache — ${year1} vs ${year2}`:'Comparison complete');
+}
+
+function setCompareView(view) {
+  state.compareView=view;
+  ['change','y1','y2'].forEach(v=>{
+    const btn=document.getElementById(`vbtn-${v}`);
+    if(btn) btn.classList.toggle('active',v===view);
+  });
+  document.getElementById('change-legend').style.display=view==='change'?'block':'none';
+  applyCompareView();
+}
+function applyCompareView() {
+  ['change','y1','y2'].forEach(k=>{
+    if(state.overlays[k]&&map.hasLayer(state.overlays[k])) map.removeLayer(state.overlays[k]);
+  });
+  const active=state.overlays[state.compareView];
+  if(active) active.addTo(map);
+  const labels={change:'Change Map',y1:`Year ${state.compareData?.year1||'1'}`,y2:`Year ${state.compareData?.year2||'2'}`};
+  if(state.compareData)
+    setBadge(`Viewing: ${labels[state.compareView]} · ${state.compareData.year1}→${state.compareData.year2}`);
+}
+
+// =============================================================================
+// FORECAST — with cache
+// =============================================================================
+async function runForecast() {
+  if(state.isLoading) return;
+  if(!state.drawnCoords){setStatus('error','Draw a polygon on the map first');return;}
+  const forecastYears=parseInt(document.getElementById('forecast-years').value);
+  const key    = cacheKey('forecast', state.drawnCoords, `fy${forecastYears}`);
+  const cached = loadCache(key);
+  if(cached){ showCacheBadge(true); applyForecastResult(cached,true); return; }
+  startLoading('Fetching real satellite data per year from GEE…');
+  try {
+    const res=await fetch(`${API}/forecast`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({coordinates:state.drawnCoords,forecast_years:forecastYears,history_years:4}),
+    });
+    if(!res.ok) throw new Error((await res.json()).detail||`HTTP ${res.status}`);
+    const data=await res.json();
+    saveCache(key,data); showCacheBadge(false);
+    applyForecastResult(data,false);
+  } catch(e){setStatus('error',e.message);}
+  finally{stopLoading();}
+}
+function applyForecastResult(data, fromCache) {
+  renderForecastStats(data); drawChart(data);
+  document.getElementById('forecast-source-card').style.display='block';
+  document.getElementById('forecast-source-text').innerHTML=
+    `Source: <strong style="color:var(--accent)">${data.source}</strong><br>
+     Trend: <strong style="color:var(--${data.trend==='increasing'?'accent':data.trend==='decreasing'?'danger':'warn'})">${data.trend}</strong><br>
+     Slope: ${data.model.slope>0?'+':''}${data.model.slope} t/ha/yr · R²: ${data.model.r2}`;
+  setStatus('success',fromCache?`Loaded from cache — ${data.trend}`:`Forecast ready — ${data.trend}`);
+}
+
+// =============================================================================
+// LAYERS
+// =============================================================================
+function toggleLayer(key) {
+  const ov=state.overlays[key]; if(!ov) return;
+  state.layerVisible[key]=!state.layerVisible[key];
+  const chk=document.getElementById(`check-${key}`);
+  if(state.layerVisible[key]){ov.addTo(map);if(chk)chk.classList.add('active');}
+  else{map.removeLayer(ov);if(chk)chk.classList.remove('active');}
+}
+function syncLayerChecks() {
+  Object.keys(state.layerVisible).forEach(k=>{
+    const chk=document.getElementById(`check-${k}`);
+    if(chk){if(state.layerVisible[k])chk.classList.add('active');else chk.classList.remove('active');}
+  });
+}
+function removeAllOverlays() {
+  Object.values(state.overlays).forEach(o=>{if(o&&map.hasLayer(o))map.removeLayer(o);});
+  state.overlays={}; state.layerVisible={};
+  ['carbon_map','lulc_map','ndvi_map','rgb'].forEach(k=>{
+    const el=document.getElementById(`check-${k}`);if(el)el.classList.remove('active');
+  });
+}
+
+// =============================================================================
+// STATS RENDERERS
+// =============================================================================
+function renderAnalyzeStats(d) {
+  document.getElementById('stats-container').innerHTML=`
+    <div class="stats-grid">
+      <div class="stat-cell"><div class="stat-lbl">Year</div><div class="stat-val blue">${d.year}</div><div class="stat-unit">auto-selected</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Carbon stock</div><div class="stat-val green">${d.carbon.toFixed(1)}</div><div class="stat-unit">t C / ha</div></div>
+      <div class="stat-cell"><div class="stat-lbl">NDVI</div><div class="stat-val blue">${d.ndvi_mean.toFixed(3)}</div><div class="stat-unit">index</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Temperature</div><div class="stat-val orange">${d.temperature_mean.toFixed(1)}°C</div><div class="stat-unit">mean LST</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Total carbon</div><div class="stat-val green">${d.carbon_total_tonnes.toFixed(0)}</div><div class="stat-unit">tonnes</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Area</div><div class="stat-val orange">${d.area_ha.toFixed(0)}</div><div class="stat-unit">hectares</div></div>
+      <div class="stat-cell full"><div class="stat-lbl">Carbon level</div><span class="level-badge level-${d.carbon_level}">● ${d.carbon_level} Carbon Stock</span></div>
+      <div class="stat-cell full"><div class="stat-lbl">Land use · Model</div><div class="stat-val" style="font-size:13px">${d.lulc_label}</div><div class="stat-unit">${d.model_used}</div></div>
+    </div>`;
+}
+function renderCompareStats(d) {
+  const chg=d.change; const sign=chg>=0?'+':'';
+  const tColor=d.trend==='increasing'?'var(--accent)':d.trend==='decreasing'?'var(--danger)':'var(--warn)';
+  const badge=d.trend==='increasing'?'level-High':d.trend==='decreasing'?'level-Low':'level-Medium';
+  const tText=d.trend==='increasing'?'CARBON GAIN':d.trend==='decreasing'?'CARBON LOSS':'STABLE';
+  document.getElementById('stats-container').innerHTML=`
+    <div class="stats-grid">
+      <div class="stat-cell"><div class="stat-lbl">Carbon ${d.year1}</div><div class="stat-val blue">${d.carbon_year1.toFixed(2)}</div><div class="stat-unit">t C / ha</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Carbon ${d.year2}</div><div class="stat-val blue">${d.carbon_year2.toFixed(2)}</div><div class="stat-unit">t C / ha</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Change</div><div class="stat-val" style="color:${tColor}">${sign}${chg.toFixed(2)}</div><div class="stat-unit">t C / ha</div></div>
+      <div class="stat-cell"><div class="stat-lbl">Change %</div><div class="stat-val" style="color:${tColor}">${sign}${d.change_pct.toFixed(1)}%</div><div class="stat-unit">relative</div></div>
+      <div class="stat-cell full"><div class="stat-lbl">Status</div><span class="level-badge ${badge}" style="width:100%;justify-content:center">● ${tText} (${sign}${chg.toFixed(2)} t C/ha)</span></div>
+      <div class="stat-cell"><div class="stat-lbl">NDVI ${d.year1}</div><div class="stat-val" style="font-size:14px;color:var(--blue)">${d.ndvi_year1.toFixed(3)}</div><div class="stat-unit">index</div></div>
+      <div class="stat-cell"><div class="stat-lbl">NDVI ${d.year2}</div><div class="stat-val" style="font-size:14px;color:${d.ndvi_change>=0?'var(--accent)':'var(--danger)'}">${d.ndvi_year2.toFixed(3)}</div><div class="stat-unit">${d.ndvi_change>=0?'+':''}${d.ndvi_change.toFixed(3)}</div></div>
+      <div class="stat-cell full"><div class="stat-lbl">Land use</div><div class="stat-val" style="font-size:12px">${d.lulc_year1||'—'} → ${d.lulc_year2||'—'}</div><div class="stat-unit">dominant class</div></div>
+    </div>`;
+}
+function renderForecastStats(d) {
+  const hRows=d.historical.years.map((yr,i)=>
+    `<div class="stat-cell"><div class="stat-lbl">${yr} (historical)</div><div class="stat-val blue">${d.historical.carbon[i]}</div><div class="stat-unit">t C / ha</div></div>`).join('');
+  const fRows=d.forecast.years.map((yr,i)=>
+    `<div class="stat-cell"><div class="stat-lbl">${yr} (forecast)</div><div class="stat-val purple">${d.forecast.carbon[i]}</div><div class="stat-unit">t C / ha</div></div>`).join('');
+  document.getElementById('stats-container').innerHTML=`
+    <div class="stats-grid">
+      ${hRows}${fRows}
+      <div class="stat-cell full">
+        <div class="stat-lbl">Trend · ${d.model.slope>0?'+':''}${d.model.slope} t/ha/yr</div>
+        <div class="stat-val" style="font-size:13px;color:var(--${d.trend==='increasing'?'accent':d.trend==='decreasing'?'danger':'warn'})">${d.trend}</div>
+        <div class="stat-unit">${d.description}</div>
+      </div>
+    </div>`;
+}
+function renderRecs(recs) {
+  if(!recs||!recs.length) return;
+  document.getElementById('recs-card').style.display='block';
+  document.getElementById('recs-container').innerHTML=
+    recs.map(r=>`<div class="rec-item"><div class="rec-dot"></div><span>${r}</span></div>`).join('');
+}
+
+// =============================================================================
+// CHART
+// =============================================================================
+function drawChart(data) {
+  document.getElementById('chart-panel').classList.add('visible');
+  if(trendChart){trendChart.destroy();trendChart=null;}
+  const histYears=data.historical.years,histCarbs=data.historical.carbon;
+  const foreYears=data.forecast.years,foreCarbs=data.forecast.carbon;
+  const allLabels=[...histYears.map(String),...foreYears.map(String)];
+  const histData=[...histCarbs,...foreYears.map(()=>null)];
+  const foreData=[...histYears.map(()=>null),...foreCarbs];
+  foreData[histYears.length-1]=histCarbs[histCarbs.length-1];
+  document.getElementById('chart-subtitle').textContent=
+    `Historical: ${histYears[0]}–${histYears[histYears.length-1]} · Forecast: ${foreYears[0]}–${foreYears[foreYears.length-1]}`;
+  const isDark=currentTheme==='dark';
+  const grid=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.07)';
+  const tick='#64748b';
+  const ttBg=isDark?'rgba(15,23,42,0.95)':'rgba(255,255,255,0.97)';
+  const ttT=isDark?'#f8fafc':'#0f172a';
+  const ttB=isDark?'#cbd5e1':'#334155';
+  const ttBd=isDark?'rgba(255,255,255,0.08)':'rgba(0,0,0,0.1)';
+  const ptBd=isDark?'#0f172a':'#ffffff';
+  const ctx=document.getElementById('trend-chart').getContext('2d');
+  trendChart=new Chart(ctx,{type:'line',data:{labels:allLabels,datasets:[
+    {label:'Historical',data:histData,borderColor:'#10b981',backgroundColor:'rgba(16,185,129,0.08)',borderWidth:2.5,pointRadius:5,pointBackgroundColor:'#10b981',pointBorderColor:ptBd,pointBorderWidth:1.5,fill:true,tension:0.3,spanGaps:false},
+    {label:'Forecast',data:foreData,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,0.06)',borderWidth:2.5,borderDash:[7,4],pointRadius:5,pointBackgroundColor:'#6366f1',pointBorderColor:ptBd,pointBorderWidth:1.5,fill:true,tension:0.3,spanGaps:false}
+  ]},options:{responsive:true,interaction:{intersect:false,mode:'index'},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:ttBg,titleColor:ttT,bodyColor:ttB,borderColor:ttBd,borderWidth:1,padding:12,cornerRadius:8,
+      callbacks:{label:ctx=>{if(ctx.parsed.y===null)return null;return ` ${ctx.datasetIndex===0?'Measured':'Predicted'}: ${ctx.parsed.y.toFixed(2)} t/ha`}}}},
+    scales:{x:{ticks:{color:tick,font:{size:11}},grid:{color:grid}},
+      y:{ticks:{color:tick,font:{size:11}},grid:{color:grid},title:{display:true,text:'t C / ha',color:tick,font:{size:11}}}}}});
+}
+
+// =============================================================================
+// CLEAR + STATUS
+// =============================================================================
+function clearAll() {
+  drawnItems.clearLayers();
+  state.drawnPolygon=null; state.drawnCoords=null; state.compareData=null;
+  removeAllOverlays(); hideCacheBadge();
+  document.getElementById('save-row').style.display='none';
+  document.getElementById('area-name-input').value='';
+  document.getElementById('stats-container').innerHTML='<div class="stat-placeholder">Run analysis to see results</div>';
+  document.getElementById('recs-card').style.display='none';
+  document.getElementById('info-badge').classList.remove('visible');
+  document.getElementById('chart-panel').classList.remove('visible');
+  document.getElementById('auto-year-badge').textContent='Year: auto-selected by backend';
+  enableButtons(false);
+  document.getElementById('map-hint').classList.remove('hidden');
+  state.availableYears=[2017,2018,2019,2020,2021,2022,2023,2024,2025];
+  populateDropdowns();
+  setStatus('idle','Draw a polygon to begin');
+}
+function setBadge(text){const b=document.getElementById('info-badge');b.textContent=text;b.classList.add('visible')}
+function setStatus(type,msg) {
+  const b=document.getElementById('status-badge'),d=document.getElementById('sdot');
+  b.className='';d.className='sdot';
+  if(type==='loading'){b.classList.add('loading');d.classList.add('spin');}
+  else if(type==='error') b.classList.add('error');
+  else if(type==='success'||type==='ready') b.classList.add('success');
+  document.getElementById('stext').textContent=msg;
+}
+function startLoading(msg) {
+  state.isLoading=true;
+  document.getElementById('map-overlay').classList.add('active');
+  document.getElementById('overlay-msg').textContent=msg;
+  setStatus('loading',msg); animateProgress();
+  enableButtons(false);
+  document.getElementById('forecast-btn').disabled=true;
+}
+function stopLoading() {
+  state.isLoading=false;
+  document.getElementById('map-overlay').classList.remove('active');
+  stopProgress();
+  if(state.drawnCoords) enableButtons(true);
+  document.getElementById('forecast-btn').disabled=false;
+}
+let pInt=null;
+function animateProgress(){
+  const bar=document.getElementById('progress-bar'),fill=document.getElementById('progress-fill');
+  bar.classList.add('active');fill.style.width='0%';let p=0;
+  pInt=setInterval(()=>{p+=(90-p)*.04;fill.style.width=p+'%';},200);
+}
+function stopProgress(){
+  clearInterval(pInt);
+  const fill=document.getElementById('progress-fill');
+  fill.style.width='100%';
+  setTimeout(()=>{document.getElementById('progress-bar').classList.remove('active');fill.style.width='0%';},400);
+}
+
+// =============================================================================
+// AVAILABLE YEARS + DROPDOWNS
+// =============================================================================
+async function fetchAvailableYears(coords) {
+  setStatus('loading','Checking Sentinel-2 availability…');
+  enableButtons(false);
+  try {
+    const res=await fetch(`${API}/available-years`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({coordinates:coords}),
+    });
+    if(!res.ok) throw new Error((await res.json()).detail||`HTTP ${res.status}`);
+    const data=await res.json();
+    const years=data.available_years;
+    if(!years||years.length<2){
+      setStatus('error','Insufficient satellite data in this region.');
+      document.getElementById('compare-btn').disabled=true;
+      return;
+    }
+    state.availableYears=years;
+    populateDropdowns();
+    setStatus('ready',`Polygon ready — years: ${years.join(', ')}`);
+    enableButtons(true);
+  } catch(e){
+    console.error(e);
+    state.availableYears=[2017,2018,2019,2020,2021,2022,2023,2024,2025];
+    populateDropdowns(); enableButtons(true);
+    setStatus('ready','Polygon ready');
+  }
+}
+function populateDropdowns() {
+  const y1Select=document.getElementById('year1-select');
+  if(!y1Select) return;
+  const years=state.availableYears;
+  const y1Years=years.slice(0,-1);
+  y1Select.innerHTML=y1Years.map(yr=>`<option value="${yr}">${yr}</option>`).join('');
+  y1Select.value=y1Years.includes(2020)?2020:y1Years[0];
+  updateYear2Options();
+}
+function updateYear2Options() {
+  const y1Select=document.getElementById('year1-select');
+  const y2Select=document.getElementById('year2-select');
+  if(!y1Select||!y2Select) return;
+  const selectedY1=parseInt(y1Select.value);
+  const validY2=state.availableYears.filter(yr=>yr>selectedY1);
+  y2Select.innerHTML=validY2.map(yr=>`<option value="${yr}">${yr}</option>`).join('');
+  y2Select.value=validY2[validY2.length-1];
+}
+function initYearDropdowns() {
+  const y1Select=document.getElementById('year1-select');
+  if(y1Select) y1Select.addEventListener('change',updateYear2Options);
+  populateDropdowns();
+}
+
+// =============================================================================
+// INIT
+// =============================================================================
+document.getElementById('analyze-layers-card').style.display='block';
+renderSavedAreas();
+initYearDropdowns();
+setStatus('idle','Draw a polygon to begin');
+</script>
+</body>
+</html>
